@@ -177,15 +177,14 @@ async def execute_query(db_name: str, query: str) -> str:
             logger.warning(f"Blocked unsafe query: {ve}")
             return f"Error: {str(ve)}"
 
-        safe_query = enforce_limit(query)
-
+        # Run query as-is; do not append LIMIT (breaks aggregate queries like COUNT/SUM)
         conn = await connect(db_name)
         
         # Determine if this is a query that returns results
-        query_type = safe_query.strip().upper().split()[0]
+        query_type = query.strip().upper().split()[0]
         
         if query_type in ("SELECT", "WITH", "SHOW", "EXPLAIN"):
-            rows = await conn.fetch(safe_query)
+            rows = await conn.fetch(query)
             await conn.close()
             
             if not rows:
@@ -200,7 +199,7 @@ async def execute_query(db_name: str, query: str) -> str:
             return "\n".join(result_lines)
         else:
             # For non-SELECT queries
-            status = await conn.execute(safe_query)
+            status = await conn.execute(query)
             await conn.close()
             return f"Query executed successfully. Status: {status}"
             
